@@ -103,6 +103,12 @@ public class CombinedCrafter extends GenericCrafter {
 
     // ==================== HeatProducer 模式字段 ====================
     public float heatOutput = 0f;
+    /**
+     * 原版 HeatProducer 的升温字段。GenericCrafter 自己的 warmupSpeed 是 0.019，
+     * 而 HeatProducer.warmupRate 默认是 0.15；字段名不同，copyFields 不会自动桥接。
+     * 保留同名字段供 BlockCloner 原样复制，产热升温才能与未组合机器一致。
+     */
+    public float warmupRate = 0.15f;
 
     // ==================== 原有字段 ====================
     public float displayLiquid;
@@ -1560,7 +1566,7 @@ public class CombinedCrafter extends GenericCrafter {
                     progress += getProgressIncrease(craftTime);
                     warmup = Mathf.approachDelta(warmup, warmupTarget(), warmupSpeed);
                     // 平滑热量输出值（对外暴露）
-                    producerHeat = Mathf.approachDelta(producerHeat, cb.heatOutput * efficiency, warmupSpeed * delta());
+                    producerHeat = Mathf.approachDelta(producerHeat, cb.heatOutput * efficiency, warmupRate * delta());
 
                     // 同时往共享池注入（供组合体内部不相邻成员使用）
                     if (cb.heatOutput > 0) {
@@ -1584,7 +1590,7 @@ public class CombinedCrafter extends GenericCrafter {
                     }
                 } else {
                     warmup = Mathf.approachDelta(warmup, 0f, warmupSpeed);
-                    producerHeat = Mathf.approachDelta(producerHeat, 0f, warmupSpeed * delta());
+                    producerHeat = Mathf.approachDelta(producerHeat, 0f, warmupRate * delta());
                 }
 
                 totalProgress += warmup * Time.delta;
@@ -1954,6 +1960,12 @@ public class CombinedCrafter extends GenericCrafter {
         public boolean acceptItem(Building source, Item item) {
             if (!block.hasItems || item == null)
                 return false;
+            // 【同池搬运黑洞】组合节点/连接器把仓库或核心并进同一个物品池后，
+            // 对方的 items 就是本对象的 items。让 dump() 把物品"搬"到同一份模块里
+            // 等于加 1 再减 1：读数没变，但 dump() 返回成功，后面的传送带永远轮不到。
+            // 用户报的「组合建筑物品输出速度太慢」（严重时完全不输出）就是这条。
+            if (source != null && source.items == items)
+                return false;
             boolean needed = isConsumedInCombo(item);
             return needed && items.get(item) < getMaximumAccepted(item); // 按种类检查：每种原料各有份额，先到的不堵死其它的：不再按种类各装满一份
         }
@@ -1971,6 +1983,9 @@ public class CombinedCrafter extends GenericCrafter {
         @Override
         public boolean acceptLiquid(Building source, Liquid liquid) {
             if (!block.hasLiquids || liquid == null)
+                return false;
+            // 同池液体同理：别把"倒回自己池子"当成一次成功的搬运。
+            if (source != null && source.liquids == liquids)
                 return false;
             boolean needed = isLiquidConsumedInCombo(liquid);
             return needed && liquids.get(liquid) < comboTotalLiquidCap - 0.001f;
@@ -1991,11 +2006,22 @@ public class CombinedCrafter extends GenericCrafter {
 
         @Override
         public boolean canDump(Building to, Item item) {
+            // 目标和自己共用一个 ItemModule：这不是"搬出去"，而是原地加一减一。
+            // 必须让 dump() 继续找真正的外部出口（传送带/管道/独立仓库）。
+            if (to == null || items == null || to.items == items)
+                return false;
             CombinedCrafter cb = (CombinedCrafter) block;
             if (cb.mode == Mode.separator) {
                 return !consumesItem(item);
             }
             return super.canDump(to, item);
+        }
+
+        @Override
+        public boolean canDumpLiquid(Building to, Liquid liquid) {
+            // 同上：同池的液体目标不能挡住真正的外部管道。
+            return to != null && liquids != null && to.liquids != liquids
+                    && super.canDumpLiquid(to, liquid);
         }
 
         public float getTotalLiquidCapacity() {

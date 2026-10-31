@@ -141,7 +141,9 @@ public class Driver extends Mod{
                 Timer.schedule(() -> shot("conv_world"), 14f);
                 Timer.schedule(Driver::convOpenInfo, 16f);
                 Timer.schedule(() -> shot("conv_info"), 24f);
-                Timer.schedule(() -> { Log.info("[drv] conv 模式结束"); Core.app.exit(); }, 40f);
+                Timer.schedule(Driver::convOpenInfoUnloader, 26f);
+                Timer.schedule(() -> shot("conv_info_unloader"), 34f);
+                Timer.schedule(() -> { Log.info("[drv] conv 模式结束"); Core.app.exit(); }, 44f);
             }else if(mode.equals("bp")){
                 // 蓝图里的组合连接器：写一个含连接器的蓝图 → 重新从磁盘 load() → 打印/截图看还在不在
                 Timer.schedule(Driver::hideDialogs, 3f);
@@ -165,7 +167,7 @@ public class Driver extends Mod{
                 Timer.schedule(Driver::rebuildGo, 12f);
                 Timer.schedule(Driver::rebuildStep, 14f, 0.5f);
                 Timer.schedule(() -> { Log.info("[drv] rebuild 模式超时结束"); Core.app.exit(); }, 200f);
-            else if(mode.equals("align")){
+            }else if(mode.equals("align")){
                 // 对照：2x2 原版机器 + 四角 1x1 小方块，量"贴图到底画在哪"
                 installFrameCounter();
                 Timer.schedule(Driver::hideDialogs, 3f);
@@ -173,7 +175,7 @@ public class Driver extends Mod{
                 Timer.schedule(Driver::hideDialogs, 9f);
                 Timer.schedule(() -> shot("align_ref"), 11f);
                 Timer.schedule(() -> { Log.info("[drv] align 模式结束"); Core.app.exit(); }, 14f);
-else if(mode.equals("shadow")){
+            }else if(mode.equals("shadow")){
                 // 用户 2026-10-08：浮标旁边再加一个子按钮（Icon.production）= 框选矿物地板 →
                 // 画一层阴影；阴影上放下的钻头缩到 1x1（挖矿仍按原来大小每格都盖住了矿物算）。
                 // 要看的：① 三个子按钮的排版（不能被挤出屏幕）；② 阴影真的画在矿上；
@@ -291,7 +293,212 @@ else if(mode.equals("shadow")){
                 Timer.schedule(() -> shot("bodyshare_setting_off"), 52f);
                 Timer.schedule(() -> { Log.info("[drv] bodyshare 模式结束"); Core.app.exit(); }, 58f);
                 Timer.schedule(() -> { Log.info("[drv] bodyshare 超时"); Core.app.exit(); }, 220f);
-            );
+            }else if(mode.equals("bigcombo")){
+                // 用户报的"组合的东西过多时显示面板非常大"：组合体构成列表要放进滚动窗、高度封顶。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::setupBigComboScene, 5f);
+                Timer.schedule(Driver::bigComboBuild, 8f);
+                Timer.schedule(Driver::bigComboPanel, 20f);
+                Timer.schedule(() -> shot("bigcombo_top"), 26f);
+                Timer.schedule(Driver::bigComboScrollBottom, 28f);
+                Timer.schedule(() -> shot("bigcombo_bottom"), 34f);
+                Timer.schedule(Driver::bigComboReport, 36f);
+                Timer.schedule(() -> { Log.info("[drv] bigcombo 模式结束"); Core.app.exit(); }, 40f);
+                Timer.schedule(() -> { Log.info("[drv] bigcombo 超时"); Core.app.exit(); }, 200f);
+            }else if(mode.equals("beastname")){
+                // 巨兽悬浮信息栏里的"类型名"（用户报的"mi2 在游戏上方显示组合巨兽的 type"）：
+                // 巨兽派生类型共用一个占位类型，名字是通用名"组合巨兽"；这里换成成员构成。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::setupMegaScene, 5f);
+                Timer.schedule(Driver::megaMerge, 14f);
+                Timer.schedule(Driver::beastInspect, 18f);
+                Timer.schedule(() -> shot("beastname_vanilla"), 24f);
+                Timer.schedule(Driver::beastMi2, 27f);
+                Timer.schedule(() -> shot("beastname_mi2"), 34f);
+                Timer.schedule(() -> { Log.info("[drv] beastname 模式结束"); Core.app.exit(); }, 40f);
+                Timer.schedule(() -> { Log.info("[drv] beastname 超时"); Core.app.exit(); }, 180f);
+            }else if(mode.equals("shipmega")){
+                // 用户报："两艘船组合后速度变得超级慢 / 没处理水的阻力"。
+                // 两艘 risso 在**深水**里合体：看它还在不在水面、速度系数是不是和原版船一致
+                // （原版船 1.3；没处理水阻时按普通单位算只有 0.2）。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::setupShipScene, 5f);
+                Timer.schedule(Driver::shipMerge, 12f);
+                Timer.schedule(Driver::shipReport, 20f);
+                Timer.schedule(() -> shot("ship_mega"), 24f);
+                Timer.schedule(() -> { Log.info("[drv] shipmega 模式结束 frames=@", frames); Core.app.exit(); }, 30f);
+            }else if(mode.equals("duo")){
+                // 用户报：dagger + vela 组合后"会发射 vela 治疗武器的子弹"、"碰撞箱好像变了"。
+                // 场景：dagger+vela 合体 → 打开碰撞箱显示 → 旁边放一个敌方单位逼它开火 → 截图。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::setupDuoScene, 5f);
+                Timer.schedule(Driver::duoMerge, 12f);
+                Timer.schedule(Driver::duoReport, 20f);
+                Timer.schedule(() -> shot("duo_fight"), 30f);
+                Timer.schedule(Driver::duoReport, 34f);
+                Timer.schedule(() -> shot("duo_fight2"), 40f);
+                Timer.schedule(() -> { Log.info("[drv] duo 模式结束 frames=@", frames); Core.app.exit(); }, 46f);
+            }else if(mode.equals("legs")){
+                // 用户报：组合巨兽（成员是腿类单位）没画腿，腿也要按比例放大。
+                installFrameCounter();
+                installCameraLock();
+                keepDialogsHidden();
+                Timer.schedule(Driver::setupLegsScene, 5f);
+                Timer.schedule(Driver::legsMerge, 12f);
+                Timer.schedule(Driver::legsReport, 20f);
+                // 参照 spiroct 紧跟着巨兽，同一张图里对比腿的比例（融合半径 160，必须融合后再放）
+                Timer.schedule(Driver::legsRefSpawn, 21f);
+                Timer.schedule(() -> shot("legs_mega"), 24f);
+                Timer.schedule(Driver::legsReport, 28f);
+                Timer.schedule(() -> {
+                    Log.info("[drv] legs 参照: ref=@ 位置=(@,@) 腿数=@", legsRef == null ? "null" : legsRef.type.name,
+                        legsRef == null ? 0 : (int)legsRef.x, legsRef == null ? 0 : (int)legsRef.y,
+                        legsRef instanceof mindustry.gen.Legsc l ? l.legs().length : -1);
+                    logLegSpan("巨兽", legsMega);
+                    logLegSpan("参照spiroct", legsRef);
+                }, 30f);
+                Timer.schedule(() -> { Log.info("[drv] legs 模式结束 frames=@", frames); Core.app.exit(); }, 36f);
+            }else if(mode.equals("mech")){
+                // 机甲类成员（dagger/fortress…）合体：机甲腿也是原版分开画的（drawMech），
+                // 一样要按体型放大——和 legs 模式同一套场景，只是把成员换成机甲。
+                installFrameCounter();
+                installCameraLock();
+                keepDialogsHidden();
+                Timer.schedule(Driver::setupLegsScene, 5f);
+                Timer.schedule(Driver::legsMerge, 12f);
+                Timer.schedule(Driver::legsRefSpawn, 21f);
+                Timer.schedule(() -> shot("mech_mega"), 24f);
+                Timer.schedule(() -> {
+                    Log.info("[drv] mech 巨兽: attKind=@ 部件状态: 行走相位=@ baseRotation=@ hitSize=@",
+                        field(legsMega, "attKind"), field(legsMega, "mechWalkTime"),
+                        field(legsMega, "legBaseRotation"), legsMega == null ? -1f : legsMega.hitSize());
+                    Log.info("[drv] mech 参照: @ hitSize=@", legsRef == null ? "null" : legsRef.type.name,
+                        legsRef == null ? -1f : legsRef.hitSize());
+                }, 28f);
+                Timer.schedule(() -> { Log.info("[drv] mech 模式结束 frames=@", frames); Core.app.exit(); }, 36f);
+            }else if(mode.equals("mp")){
+                // 真联机：连接到 verify/run-mp.sh 起的 headless 服务器，看**服务端造/融合/解体单位**
+                // 之后客户端这边到底同步成了什么样（单位在不在、成员数对不对、有没有幽灵残留）。
+                installFrameCounter();
+                keepDialogsHidden();
+                // 【镜头必须自己钉住】客户端默认是"相机跟随玩家单位"，而玩家在核心那边、
+                // 巨兽在地图另一头 —— 不钉镜头，截图永远拍不到巨兽（早先几轮联机截图就是
+                // "全是水/全是基地"，看着像"客户端不显示巨兽"，其实是根本没框进画面）。
+                Core.settings.put("detach-camera", true);
+                installCameraLock();
+                int mpSecs = Integer.parseInt(System.getProperty("drv.mpSeconds", "100"));
+                Timer.schedule(Driver::mpConnect, 4f);
+                Timer.schedule(Driver::mpReport, 8f, 1f, mpSecs);
+                Timer.schedule(() -> shot("mp_joined"), 14f);
+                // 每 0.25 秒也补一次（installCameraLock 走 HUD 帧更新，双保险）
+                Timer.schedule(Driver::lookAtMega, 20f, 0.25f, 44 * 4);
+                // 【客户端自己发起合体】服务端 t≈8 秒会在别处放两只 dagger，这里走命令面板那条
+                // 入口（UnitComboMerge.requestMergeSelected）请求合体 —— 复现"客户端合体变幽灵"。
+                // 每 3 秒试一次，最多 4 次（t≈13~22s）：要赶在剧本自己的 split（t=20/43s）之前，
+                // 否则客户端这次请求会把"服务端刚拆出来的瞬态"又合掉，1 秒一次的采样就抓不到那个
+                // 阶段状态了（那只说明判定的时间撞车，不是同步 bug）。
+                Timer.schedule(Driver::mpRequestMerge, 13f, 3f, 4);
+                // 服务端 t≈72s 会摆好"节点乱连"基地，之后由**客户端**每 3 秒随机连一根线/断一根线
+                // （走玩家点击那条原版配置通道 Call.tileConfig），复现"客户端瞎连 → 物品异常增长/减少"
+                Timer.schedule(Driver::mpNodeMess, 80f, 3f, 40);
+                Timer.schedule(() -> shot("mp_mega"), 26f);
+                Timer.schedule(() -> shot("mp_mega2"), 50f);
+                Timer.schedule(() -> shot("mp_after_split"), 66f);
+                // 服务端 t≈58（≈客户端 t≈62）会合一只矿工巨兽并让它挖矿：这张图用来看**挖矿光束**
+                // 收尾的"挖矿光束"取证：服务端的挖矿阶段按真实秒排（t≈58 起），而客户端 Timer 按帧算，
+                // 帧率漂移下拍不准某一秒 —— 干脆从 t=50s 起每 8 秒拍一张（连拍 6 张），总会拍到挖矿那一刻。
+                Timer.schedule(() -> shot("mp_mining"), 50f, 8f, 6);
+                Timer.schedule(Driver::mpVerdict, mpSecs - 2);
+                Timer.schedule(() -> { Log.info("[drv] mp 模式结束 frames=@", frames); Core.app.exit(); }, mpSecs);
+            }else if(mode.equals("userpanel")){
+                // 用户报："组合**工厂**物品面板…清空所有物资"。直接读用户存档，挑几台装满货的
+                // 组合工厂把信息面板弹出来截图，并把面板里的文字（Bar 的 label）打进日志。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::loadUserSave, 5f);
+                Timer.schedule(Driver::userPanelShot0, 40f);
+                Timer.schedule(Driver::userPanelShot1, 52f);
+                Timer.schedule(() -> { Log.info("[drv] userpanel 模式结束 frames=@", frames); Core.app.exit(); }, 60f);
+            }else if(mode.equals("pool")){
+                // 用户报："组合建筑物品面板…清空所有物资""组合工厂物资满后有时也会莫名其妙清空物品"。
+                // 场景：4 台并排的组合发电机（共享一口池子）灌满燃料 → 开信息面板截图 →
+                // 拆掉其中一台成员（原来会把超出新容量的那份真删掉）→ 再看面板/池子。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::setupPoolScene, 5f);
+                Timer.schedule(Driver::poolFill, 10f);
+                Timer.schedule(Driver::poolOpenPanel, 14f);
+                Timer.schedule(() -> shot("pool_panel_full"), 18f);
+                Timer.schedule(Driver::poolBreakOne, 22f);
+                Timer.schedule(Driver::poolOpenPanel, 26f);
+                Timer.schedule(() -> shot("pool_panel_after"), 30f);
+                // 用户报的"工厂资源间歇性清零"：存档标志 saving 会多留 3 个时间单位，
+                // 那段时间里发的联机快照原来被当成存档 → 非组长写空模块 → 客户端整组清零。
+                Timer.schedule(Driver::poolSnapshotWhileSavingCheck, 12f);
+                Timer.schedule(() -> { Log.info("[drv] pool 模式结束 frames=@", frames); Core.app.exit(); }, 36f);
+            }else if(mode.equals("tech")){
+                // 科技树：真的把 ResearchDialog 打开（用户报"打开科技树崩溃"），
+                // 顺带按原版 canSpend 的写法把整棵树解引用一遍，报出是哪个节点坏。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::techScan, 5f);
+                Timer.schedule(() -> {
+                    try{
+                        Vars.ui.research.show();
+                        Log.info("[drv] 科技树已打开");
+                    }catch(Throwable t){ Log.err("[drv] 打开科技树失败", t); }
+                }, 7f);
+                Timer.schedule(() -> shot("tech_tree"), 12f);
+                Timer.schedule(Driver::techScan, 13f);
+                Timer.schedule(() -> { Log.info("[drv] tech 模式结束（frames=@）", frames); Core.app.exit(); }, 16f);
+            }else if(mode.equals("tech2")){
+                // 进图之后再开科技树：WorldLoadEvent 上本模组会按星球换造价 + 扫一遍树，
+                // 这条路径和"主菜单直接开树"不一样，用户是在游戏里点开的。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(Driver::setupTechWorld, 5f);
+                Timer.schedule(Driver::techScan, 20f);
+                Timer.schedule(Driver::openTechRoots, 22f);
+                Timer.schedule(Driver::techScan, 55f);
+                Timer.schedule(() -> { Log.info("[drv] tech2 模式结束（frames=@）", frames); Core.app.exit(); }, 58f);
+            }else if(mode.equals("technode")){
+                // 只关心"三个方块在不在两棵树上、图标画得对不对"：切到塞普罗/埃里克尔树，
+                // 把镜头居中到该节点再截图（树很大，不居中的话节点在屏幕外）。
+                installFrameCounter();
+                Timer.schedule(Driver::hideDialogs, 3f);
+                Timer.schedule(() -> {
+                    // 三个方块的节点在"没解锁前置物品"时会显示锁图标（原版行为），
+                    // 这里把它们的材料解锁掉，让节点画出方块本身的样子，方便对图。
+                    for(Item it : new Item[]{Items.copper, Items.lead, Items.silicon, Items.metaglass,
+                        Items.beryllium, Items.tungsten, Items.oxide}){
+                        it.unlock();
+                    }
+                    Vars.ui.research.show();
+                    Timer.schedule(() -> Vars.ui.research.rebuildTree(Blocks.coreShard.techNode), 1f);
+                    Timer.schedule(() -> Driver.treeHasOurNodes("打开后（未切换）"), 2.5f);
+                    Timer.schedule(() -> centerTree("connection"), 3f);
+                    Timer.schedule(Driver::locateTechNodes, 5f);
+                    Timer.schedule(() -> shot("serpulo_connection"), 6f);
+                    Timer.schedule(() -> centerTree("liquid-unloader"), 7f);
+                    Timer.schedule(Driver::locateTechNodes, 9f);
+                    Timer.schedule(() -> shot("serpulo_unloader"), 10f);
+                    Timer.schedule(() -> Vars.ui.research.rebuildTree(Blocks.coreBastion.techNode), 11f);
+                    Timer.schedule(() -> centerTree("connection"), 13f);
+                    Timer.schedule(Driver::locateTechNodes, 15f);
+                    Timer.schedule(() -> shot("erekir_connection"), 16f);
+                    Timer.schedule(() -> centerTree("liquid-unloader"), 17f);
+                    Timer.schedule(Driver::locateTechNodes, 19f);
+                    Timer.schedule(() -> shot("erekir_unloader"), 20f);
+                    Timer.schedule(() -> { Log.info("[drv] technode 模式结束"); Core.app.exit(); }, 23f);
+                }, 6f);
+            }else{
+                Timer.schedule(Driver::step1, 4f);
+            }
+        });
     }
 
     static final String mode = System.getProperty("drv.mode", "list");
@@ -2216,6 +2423,8 @@ else if(mode.equals("shadow")){
 
     // ---------------- 组合传送带（覆盖叠层提速，mode=conv） ----------------
     static Building[] convRow = new Building[8];
+    /** 【2026-10-11】卸载器也能叠加：截图里要看得到它身上的层数数字。 */
+    static Building[] unloaderRow = new Building[2];
 
     static void setupConvScene(){
         try{
@@ -2288,6 +2497,21 @@ else if(mode.equals("shadow")){
                     cb.handleStack(Items.copper, 1, null);
                 }
             }
+            // 【用户 2026-10-11："让 unloader 也能叠加"】摆两台卸载器，右边那台叠一层 ——
+            // 世界截图里要能看到它身上有个"2"（和传送带同一套层数徽标），
+            // 详情面板截图里要能看到"每叠一层卸载速度翻一倍"那行提示。
+            Block unloader = byName("unloader");
+            if(unloader != null && unloader.getClass().getName().contains("CombinedUnloader")){
+                Vars.state.rules.infiniteResources = true; // 叠层要扣料/退料，展示场景不折腾核心库存
+                unloaderRow[0] = place(unloader, 60, 63);
+                unloaderRow[1] = place(unloader, 66, 63);
+                mindustry.entities.units.BuildPlan up = new mindustry.entities.units.BuildPlan(66, 63, 0, unloader, null);
+                unloader.onNewPlan(up); // = 原版在松手/按 ✓ 时做的事
+                Log.info("[drv] 卸载器: 类=@ rotate=@ 层数=@ 说明=@", unloader.getClass().getName(), unloader.rotate,
+                    layersOf(unloaderRow[1]), unloader.description == null ? "null" : unloader.description.replace('\n', '|'));
+            }else{
+                Log.err("[drv] 卸载器没被换成组合版：@", unloader == null ? "null" : unloader.getClass().getName());
+            }
             // 【2026-10-10】镜头钉到这条试验带上并拉近，截图要能看清"带子上叠了几层"的数字
             // （用户要求"数字显示放在传送带身上"）。以前镜头默认跟着玩家单位（在核心那边），
             // 8 格试验带根本不在画面里，看不出层数、也看不清贴图/物品。
@@ -2308,6 +2532,25 @@ else if(mode.equals("shadow")){
                 conv.description == null ? "null" : conv.description.replace('\n', '|'));
             Vars.ui.content.show(conv);
         }catch(Throwable t){ Log.err("[drv] convOpenInfo failed", t); }
+    }
+
+    /** 【2026-10-11】卸载器详情面板：说明里应该有"每叠一层卸载速度翻一倍"。 */
+    static void convOpenInfoUnloader(){
+        try{
+            Block unloader = byName("unloader");
+            if(unloader == null) return;
+            Log.info("[drv] 卸载器详情: name=@ desc=@", unloader.localizedName,
+                unloader.description == null ? "null" : unloader.description.replace('\n', '|'));
+            Vars.ui.content.show(unloader);
+        }catch(Throwable t){ Log.err("[drv] convOpenInfoUnloader failed", t); }
+    }
+
+    /** 读一个建筑的覆盖层数（combine 的 Layered 接口，模组 classloader）。 */
+    static int layersOf(Building b){
+        try{
+            Class<?> layered = Class.forName("combine.distribution.Layered", true, ml);
+            return (Integer) layered.getMethod("layers").invoke(b);
+        }catch(Throwable t){ return -1; }
     }
 
     static void wallRepairStep(){
@@ -2537,7 +2780,6 @@ else if(mode.equals("shadow")){
 
     /** 总开关（SuperTurret.enabled）；停用时方块没注册，本模式要跳过。 */
     /** 停用检查：建造菜单里（= PlacementFragment 的取列表函数）不该再有超级组合炮台。 */
-    static Block pdSuper;
     static Building pdSup;
 
     /** 摆一台"里面是两格点防炮"的超级组合炮台（mode=pd 用）。 */
@@ -2808,12 +3050,8 @@ else if(mode.equals("shadow")){
         }
     }
     /** 框选那一步生成的虚影配置/位置：后面直接落地用（驱动里不等建造单位慢慢造）。 */
-    static Object fcCfg;
-    static int fcTx, fcTy;
     /** 框选那一步数到的工厂台数（决定合体块边长）。 */
-    static int fcCount;
-
-    /** 展开/收起浮标旁边那两个子按钮（炮台合体 / 工厂合体）——截图用。 */
+    /** 展开/收起浮标旁边的子按钮（现在只剩「矿物阴影」）——截图用。 */
     static void toggleMergeSubButtons() {
         try {
             combineCall("combine.ui.ComboHudButton", "toggleSubButtons", null);
@@ -2822,7 +3060,12 @@ else if(mode.equals("shadow")){
         }
     }
 
-    /** 截图前把浮标挪到屏幕左半边（子按钮应该在它右边），并把两个子按钮的位置打进日志。 */
+    /** HUD 浮标的类（合体建筑独立到 merge 后，浮标只剩「矿物阴影」这一个入口）。 */
+    static Class<?> hudButtonCls() throws Exception {
+        return Class.forName("combine.ui.ComboHudButton", true, ml);
+    }
+
+    /** 截图前把浮标挪到屏幕左半边（子按钮应该在它右边），并把子按钮的位置打进日志。 */
     static void prepareSubButtonShot() {
         try {
             Class<?> cls = hudButtonCls();
@@ -2853,6 +3096,41 @@ else if(mode.equals("shadow")){
     }
 
     // ---------------- 矿物阴影（新按钮：框矿物地板 → 阴影上放钻头缩到 1x1） ----------------
+
+    /**
+     * HUD 浮标自检：挂上了没有、位置/尺寸合理、点得到（没被别的 HUD 层盖住）、
+     * 而且**没有**去改原版的 input 处理器（用户 2026-09-28 的要求）。
+     */
+    static void checkHudButton() {
+        try {
+            Class<?> cls = hudButtonCls();
+            Object btn = getStatic(cls, "button");
+            if (!(btn instanceof arc.scene.Element e) || e.parent == null) {
+                Log.err("[drv] FAIL hudbtn: 浮标没挂上（button=@）", btn);
+                return;
+            }
+            var in = Vars.control.input;
+            boolean vanillaInput = in != null
+                && (in.getClass().getName().equals("mindustry.input.DesktopInput")
+                    || in.getClass().getName().equals("mindustry.input.MobileInput")
+                    || in.getClass().getName().startsWith("mindustryX.input"));
+            float cx = e.x + e.getWidth() / 2f, cy = e.y + e.getHeight() / 2f;
+            arc.scene.Element hit = Core.scene.root.hit(cx, cy, true);
+            Log.info("[drv] hudbtn: 浮标=@,@ 尺寸=@x@ 命中=@ input=@", (int) e.x, (int) e.y,
+                (int) e.getWidth(), (int) e.getHeight(),
+                hit == null ? "null" : hit.getClass().getSimpleName(),
+                in == null ? "null" : in.getClass().getName());
+            boolean okPos = e.x >= 0 && e.y >= 0
+                && e.x + e.getWidth() <= e.parent.getWidth() + 0.5f
+                && e.y + e.getHeight() <= e.parent.getHeight() + 0.5f;
+            if (!okPos)
+                Log.err("[drv] FAIL hudbtn: 浮标跑出屏幕了");
+            if (!vanillaInput)
+                Log.err("[drv] FAIL hudbtn: input 处理器被改了（@）", in == null ? "null" : in.getClass());
+        } catch (Throwable t) {
+            Log.err("[drv] checkHudButton failed", t);
+        }
+    }
     static int shOx, shOy;
     /** 阴影模式的逐帧流水线步号（-1 = 没在跑）。 */
     static int shStep = -1;
@@ -2912,7 +3190,34 @@ else if(mode.equals("shadow")){
             // 不是"1x1 的空框 + 旁边挂着原来那张大图"（用户 2026-10-09 报的）。
             case 28 -> shadowQueueGhost();
             case 30 -> shot("shadow_preset_ghost");
-            case 32 -> {
+            // 【用户 2026-10-10 报"合体钻头放置时预设变成 1x1 了，但 canplace 判断还是原来的尺寸"】
+            // 走真·拖线（原版 updateLine → block.handlePlacementLine）造计划，再看 linePlans 里存的是什么方块
+            case 32 -> shadowLinePresetStart();
+            case 34 -> shot("shadow_line_plans");
+            // 手机那条路：touchUp 走的就是 flushSelectPlans(linePlans) → 预设存进 selectPlans
+            case 36 -> shadowMobilePreset();
+            case 38 -> shot("shadow_select_preset");
+            // 【拖拽虚影可见性】在一片干净（没有已建钻头/采矿烟）的阴影行上再拖一段：专门截"拖拽中的虚影"
+            case 40 -> shadowCleanDragStart();
+            case 42 -> {
+                // 截图前把"手里的方块 / 模式"再钉一次：驱动是拿反射造的拖拽，中间几帧可能被游戏自己复位
+                // （block 一旦是 null，原版那段"拖拽预览"整段就不会画，截图上当然什么都没有）
+                try {
+                    var in = Vars.control.input;
+                    Log.info("[drv] 拖拽预览状态：block=@ mode=@（DesktopInput）linePlans=@",
+                            in.block == null ? "null" : in.block.name,
+                            in instanceof mindustry.input.DesktopInput d ? String.valueOf(d.mode) : "-",
+                            in.linePlans.size);
+                    if (in.block == null)
+                        in.block = Vars.content.block("mechanical-drill");
+                    if (in instanceof mindustry.input.DesktopInput d && d.mode != mindustry.input.PlaceMode.placing)
+                        d.mode = mindustry.input.PlaceMode.placing;
+                } catch (Throwable t) {
+                    Log.err("[drv] 拖拽预览状态检查失败", t);
+                }
+                shot("shadow_drag_ghosts");
+            }
+            case 44 -> {
                 Log.info("[drv] shadow 模式结束");
                 Core.app.exit();
             }
@@ -3121,8 +3426,178 @@ else if(mode.equals("shadow")){
         }
     }
 
+    /**
+     * 【用户 2026-10-10 报"合体钻头放置时预设变成 1x1 了，但 canplace 判断还是原来的尺寸"】电脑那条路：
+     * 手里拿的仍然是原钻头（选不到隐藏的压格版本），原版 {@code updateLine} 造出来的一串计划也存原钻头 ——
+     * 于是原版画出来的**边框**（{@code Drawf.selected(x,y,plan.block,...)} 按 block.size）和松手时的
+     * {@code validPlace} 都还是 size×size。这里走真路径造线（updateLine → block.handlePlacementLine），
+     * 把 linePlans 里每份计划的方块 / size / 判据打出来核对。
+     */
+    static void shadowLinePresetStart() {
+        try {
+            Block drill = Vars.content.block("mechanical-drill");
+            if (drill == null) {
+                Log.err("[drv] shadowLinePresetStart: 找不到机械钻头");
+                return;
+            }
+            ensurePlayerUnit((shOx + 3) * 8f, (shOy + 5) * 8f);
+            // 【必须换回能建造的单位】拖拽预览只对 player.isBuilder() 的单位画：驱动前面几步把单位换成了
+            // 不能建造的 alpha，那样原版根本不画这条拖拽虚影（截图上自然"什么都没有"，验不了看得见看不见）。
+            Unit bu = Vars.player == null ? null : Vars.player.unit();
+            if (bu == null || !bu.canBuild()) {
+                bu = mindustry.content.UnitTypes.mono.spawn(Vars.player.team(), (shOx + 3) * 8f, (shOy + 5) * 8f);
+                Vars.player.unit(bu);
+                Log.info("[drv] 拖拽预览：把单位换成能建造的 mono");
+            }
+            try {
+                bu.updateBuilding(true);
+            } catch (Throwable ignored) {
+            }
+            // 拖线那一行的地基里先摆一台传送带（钻头本来就要贴着它出货）：原尺寸 2x2 的判据会因为这一格失败
+            Building belt = place(Vars.content.block("conveyor"), shOx + 4, shOy + 4);
+            var in = Vars.control.input;
+            in.block = drill;
+            in.rotation = 0;
+            if (in instanceof mindustry.input.DesktopInput di)
+                di.mode = mindustry.input.PlaceMode.placing;
+            // 镜头钉在阴影上（不然截图可能跟着玩家单位跑）
+            Core.settings.put("detach-camera", true);
+            Core.camera.position.set((shOx + 3) * 8f, (shOy + 4) * 8f);
+            try {
+                Vars.renderer.setScale(3.5f); // 近景：要能看清虚影和它脚下的那个框是几格
+            } catch (Throwable ignored) {
+            }
+            Class<?>[] sig = { int.class, int.class, int.class, int.class };
+            var m = mindustry.input.InputHandler.class.getDeclaredMethod("updateLine", sig);
+            m.setAccessible(true);
+            m.invoke(in, shOx + 3, shOy + 4, shOx + 6, shOy + 4);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < in.linePlans.size; i++) {
+                var p = in.linePlans.get(i);
+                sb.append(p.block == null ? "null" : p.block.name)
+                        .append("(size=").append(p.block == null ? -1 : p.block.size)
+                        .append(",animScale=").append(p.animScale)
+                        .append(")@").append(p.x).append(",").append(p.y).append("  ");
+            }
+            Log.info("[drv] 电脑拖线 linePlans（共 @ 份，传送带在 @,@）: " + sb.toString().trim(),
+                    in.linePlans.size, belt == null ? -1 : belt.tileX(), belt == null ? -1 : belt.tileY());
+            if (in.linePlans.size > 0) {
+                var p = in.linePlans.first();
+                Log.info("[drv] 同一格 @,@：原尺寸判据=@ / 计划里那份的判据=@（该 true）",
+                        p.x, p.y,
+                        mindustry.world.Build.validPlace(drill, Team.sharded, p.x, p.y, p.rotation, true, false),
+                        mindustry.world.Build.validPlace(p.block, Team.sharded, p.x, p.y, p.rotation, true, false));
+            }
+        } catch (Throwable t) {
+            Log.err("[drv] shadowLinePresetStart failed", t);
+        }
+    }
+
+    /**
+     * 手机那条路：真人 {@code MobileInput.touchUp} 走的就是 {@code flushSelectPlans(linePlans)} ——
+     * 预设存进 {@code selectPlans}，按建造（✓）时原版再对 {@code plan.block} 做一次 {@code validPlace}。
+     * 所以 selectPlans 里存的必须已经是压格版本（1x1），否则边框和 ✓ 那一关还是原尺寸。
+     */
+    static void shadowMobilePreset() {
+        try {
+            var in = Vars.control.input;
+            ensurePlayerUnit((shOx + 20) * 8f, (shOy + 20) * 8f); // 挪远：别让建造单位挡着判据
+            Core.settings.put("detach-camera", true);
+            Core.camera.position.set((shOx + 3) * 8f, (shOy + 4) * 8f);
+            try {
+                Vars.renderer.setScale(3.5f); // 近景：预设的框应该只有 1 格
+            } catch (Throwable ignored) {
+            }
+            Class<?>[] sig = { arc.struct.Seq.class };
+            var m = mindustry.input.InputHandler.class.getDeclaredMethod("flushSelectPlans", sig);
+            m.setAccessible(true);
+            m.invoke(in, in.linePlans);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < in.selectPlans.size; i++) {
+                var p = in.selectPlans.get(i);
+                sb.append(p.block == null ? "null" : p.block.name)
+                        .append("(size=").append(p.block == null ? -1 : p.block.size)
+                        .append(")@").append(p.x).append(",").append(p.y).append("  ");
+            }
+            Log.info("[drv] 手机预设 selectPlans（共 @ 份）: " + sb.toString().trim(), in.selectPlans.size);
+            if (in.selectPlans.size > 0) {
+                var p = in.selectPlans.first();
+                Log.info("[drv] 预设那一格的 ✓ 判据（对 plan.block）=@（该 true）",
+                        mindustry.world.Build.validPlace(p.block, Team.sharded, p.x, p.y, p.rotation, true, false));
+            }
+        } catch (Throwable t) {
+            Log.err("[drv] shadowMobilePreset failed", t);
+        }
+    }
+
     static int shPlanX = -1, shPlanY = -1;
     static Block shPlanBlock;
+
+    /**
+     * 【拖拽虚影可见性】在一片**干净**（没有已建钻头、没有采矿烟）的阴影行上再拖一段，专门给截图用：
+     * 用户报的"拖拽的时候不显示预设"要能在这张图上直接看出来（1x1 虚影应当一路可见）。
+     */
+    static void shadowCleanDragStart() {
+        try {
+            var in = Vars.control.input;
+            // 拖拽预览只对 isBuilder()（canBuild）的单位画
+            if (Vars.player != null && (Vars.player.unit() == null || !Vars.player.unit().canBuild())) {
+                var u = mindustry.content.UnitTypes.mono.spawn(Vars.player.team(),
+                        (shOx + 4) * 8f, (shOy + 8) * 8f);
+                Vars.player.unit(u);
+                Log.info("[drv] 干净行拖拽：把单位换成能建造的 mono");
+            }
+            in.block = Vars.content.block("mechanical-drill");
+            in.rotation = 0;
+            if (in instanceof mindustry.input.DesktopInput di)
+                di.mode = mindustry.input.PlaceMode.placing;
+            // 先把前面步骤留下的钻头/卡住的计划清掉：它们的采矿烟和"不能建造"警告图标会盖住虚影，
+            // 这张截图要干净地看到"拖拽中的 1x1 虚影"（阴影标记是模组自己的状态，清建筑不影响它）
+            try {
+                if (Vars.player != null && Vars.player.unit() != null)
+                    Vars.player.unit().plans.clear();
+            } catch (Throwable ignored) {
+            }
+            for (int y = shOy + 2; y <= shOy + 9; y++)
+                for (int x = shOx + 1; x <= shOx + 12; x++) {
+                    Tile t = Vars.world.tile(x, y);
+                    if (t != null && t.block() != Blocks.air)
+                        t.setBlock(Blocks.air);
+                }
+            Core.settings.put("detach-camera", true);
+            // 【干净场地】前面那片阴影被已建钻头的采矿烟/警告图标污染了，截图看不清虚影：
+            // 在最下面另铺一条矿、框成阴影，用一条全新的空行来截"拖拽中的 1x1 虚影"。
+            int cleanY = shOy + 12;
+            for (int x = shOx; x < shOx + 8; x++) {
+                Tile t = Vars.world.tile(x, cleanY);
+                if (t != null)
+                    t.setFloor((mindustry.world.blocks.environment.Floor) Blocks.oreCopper);
+            }
+            try {
+                Class<?> sh = Class.forName("combine.production.OreShadow", true, ml);
+                invokeStatic(sh, "toggle", new Class<?>[] { int.class, int.class, int.class, int.class },
+                        shOx, cleanY, shOx + 7, cleanY);
+            } catch (Throwable t) {
+                Log.err("[drv] 干净行：框阴影失败", t);
+            }
+            Core.camera.position.set((shOx + 3) * 8f, cleanY * 8f);
+            Class<?>[] sig = { int.class, int.class, int.class, int.class };
+            var m = mindustry.input.InputHandler.class.getDeclaredMethod("updateLine", sig);
+            m.setAccessible(true);
+            m.invoke(in, shOx + 2, cleanY, shOx + 5, cleanY);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < in.linePlans.size; i++) {
+                var p = in.linePlans.get(i);
+                sb.append(p.block == null ? "null" : p.block.name)
+                        .append("(size=").append(p.block == null ? -1 : p.block.size)
+                        .append(",animScale=").append(p.animScale)
+                        .append(")@").append(p.x).append(",").append(p.y).append("  ");
+            }
+            Log.info("[drv] 干净行拖拽 linePlans（共 @ 份）: " + sb.toString().trim(), in.linePlans.size);
+        } catch (Throwable t) {
+            Log.err("[drv] shadowCleanDragStart failed", t);
+        }
+    }
 
     /** 真·落地检查：游戏自己建的那台钻头到底出现没有（用户报的"点建造后钻头直接消失"）。 */
     static void shadowVerifyPlaced(String when) {
@@ -4976,38 +5451,3 @@ else if(mode.equals("shadow")){
         }
     }
 }
-
-    static void checkHudButton() {
-        try {
-            Class<?> cls = hudButtonCls();
-            Object btn = getStatic(cls, "button");
-            if (!(btn instanceof arc.scene.Element e) || e.parent == null) {
-                Log.err("[drv] FAIL hudbtn: 浮标没挂上（button=@）", btn);
-                return;
-            }
-            var in = Vars.control.input;
-            boolean vanillaInput = in != null
-                && (in.getClass().getName().equals("mindustry.input.DesktopInput")
-                    || in.getClass().getName().equals("mindustry.input.MobileInput")
-                    || in.getClass().getName().startsWith("mindustryX.input"));
-            float cx = e.x + e.getWidth() / 2f, cy = e.y + e.getHeight() / 2f;
-            arc.scene.Element hit = Core.scene.root.hit(cx, cy, true);
-            Log.info("[drv] hudbtn: 浮标=@,@ 尺寸=@x@ 命中=@ input=@", (int) e.x, (int) e.y,
-                (int) e.getWidth(), (int) e.getHeight(),
-                hit == null ? "null" : hit.getClass().getSimpleName(),
-                in == null ? "null" : in.getClass().getName());
-            boolean okPos = e.x >= 0 && e.y >= 0
-                && e.x + e.getWidth() <= e.parent.getWidth() + 0.5f
-                && e.y + e.getHeight() <= e.parent.getHeight() + 0.5f;
-            if (!okPos)
-                Log.err("[drv] FAIL hudbtn: 浮标跑出屏幕了");
-            if (!vanillaInput)
-                Log.err("[drv] FAIL hudbtn: input 处理器被改了（@）", in == null ? "null" : in.getClass());
-        } catch (Throwable t) {
-            Log.err("[drv] checkHudButton failed", t);
-        }
-    }
-
-    static Class<?> hudButtonCls() throws Exception {
-        return Class.forName("combine.ui.ComboHudButton", true, ml);
-    }

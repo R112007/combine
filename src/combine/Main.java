@@ -149,6 +149,8 @@ public class Main extends Mod {
     Events.on(mindustry.game.EventType.WorldLoadBeginEvent.class, e -> {
       // 换图：上一张图的"组合体共享配置"不能带到新图（新档里读到本块会再装回来）
       combine.saves.ComboShareState.onWorldLoadBegin();
+      ComboReflect.clearSoloCache();
+      combine.util.ComboTeams.clearTeamPlayerCache();
       ComboNet.beginWorldLoad();
     });
     // 【读**存档**只会发 SaveLoadEvent，不会发 WorldLoadBegin/WorldLoad】那两条是"读地图"才发的。
@@ -159,6 +161,8 @@ public class Main extends Mod {
     Events.on(SaveLoadEvent.class, e -> {
       // 【必须在 beginWorldLoad 之前】读档末尾补一次"没读到本块就清空"（见 ComboShareState）
       combine.saves.ComboShareState.onLoadFinished();
+      ComboReflect.clearSoloCache();
+      combine.util.ComboTeams.clearTeamPlayerCache();
       ComboNet.beginWorldLoad();
       ComboNet.rebuildLoading();
     });
@@ -169,6 +173,8 @@ public class Main extends Mod {
       Replacer.remapStaleContent();
       Replacer.remapSectorInfos();
       Replacer.remapPlanetDefaults();
+      ComboReflect.clearSoloCache();
+      combine.util.ComboTeams.clearTeamPlayerCache();
       ComboNet.rebuildLoading();
     });
 
@@ -632,7 +638,7 @@ public class Main extends Mod {
     liquidUnloader.alwaysUnlocked = !onTree;
   }
 
-    /**
+  /**
    * 内容数据兜底：把"带 null 的 ItemStack 数组"从游戏数据里清掉。
    *
    * 为什么必须有：原版这两个地方都是无检查取值，模组改不了它们（都是原版类）——
@@ -919,11 +925,11 @@ public class Main extends Mod {
       boolean isCore = isExact(b, CoreBlock.class);
       // 可选：接上之前一直闲置的 CombinedPump / CombinedWallCrafter
       boolean isLogic = isExact(b, LogicBlock.class);
-      boolean isContLiquidTurret = isExact(b, ContinuousLiquidTurret.class);
-      boolean isLiquidTurret = isExact(b, LiquidTurret.class);
-      boolean isItemTurret = isExact(b, ItemTurret.class);
-      boolean isPowerTurret = isExact(b, PowerTurret.class);
-      boolean isLaserTurret = isExact(b, LaserTurret.class);
+      boolean isContLiquidTurret = b instanceof ContinuousLiquidTurret;
+      boolean isLiquidTurret = b instanceof LiquidTurret;
+      boolean isItemTurret = b instanceof ItemTurret;
+      boolean isPowerTurret = b instanceof PowerTurret;
+      boolean isLaserTurret = b instanceof LaserTurret;
       boolean isPump = isExact(b, Pump.class) && !isExact(b, SolidPump.class);
       boolean isSolidPump = isExact(b, SolidPump.class);
       // 抽油机（Fracker / oil-extractor）：SolidPump 的子类，会"吃物品"换油，单独走 CombinedFracker

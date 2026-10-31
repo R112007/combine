@@ -2,6 +2,7 @@ package combine.storage;
 
 import arc.struct.Seq;
 import mindustry.content.Items;
+import mindustry.gen.Building;
 import mindustry.type.Item;
 import mindustry.world.blocks.storage.CoreBlock;
 
@@ -31,6 +32,20 @@ public class CombinedCoreBlock extends CoreBlock {
     }
 
     public class CombinedCoreBuild extends CoreBuild {
+        @Override
+        public boolean acceptItem(Building source, Item item) {
+            // 同池来源（组合节点/连接器接过来的工厂或仓库）的 items 就是本核心的 items：
+            // "搬进来"是加 1 再减 1 的空操作，却会让对方的 dump() 误以为成功，
+            // 后面的传送带/管道永远轮不到。拒绝它，让对方继续找出货口。
+            //
+            // 注意 source 可能是核心自己：原版 Building.acceptStack(item, amount, team)
+            // 内部就是 acceptItem(this, item)。玩家单位挖矿入核 / 手动转移都走 acceptStack；
+            // 如果把 source == this 也拒掉，单位会把物品从背包扣掉，但核心永远收不到。
+            if (source != null && source != this && source.items == items)
+                return false;
+            return super.acceptItem(source, item);
+        }
+
         @Override
         public void onProximityUpdate() {
             // 调用前把每种物品的数量记下来（content.items() 的顺序稳定）

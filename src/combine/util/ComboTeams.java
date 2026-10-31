@@ -29,11 +29,16 @@ public class ComboTeams {
    * <p>和"只和玩家队友组合"是两回事：那个只是不管 AI 敌人的建筑，玩家队伍照常组合。
    */
   public static boolean enabled = true;
+  /** 每 tick 缓存"队伍里是否有玩家"；大型基地一次更新会问上万次，结果只取决于玩家列表。 */
+  private static final byte[] teamPlayerCache = new byte[256];
+  private static long teamPlayerCacheTick = Long.MIN_VALUE;
 
   public static void load() {
     try {
       playersOnly = Core.settings.getBool(KEY, false);
       enabled = Core.settings.getBool(KEY_ENABLED, true);
+      ComboReflect.clearSoloCache();
+      clearTeamPlayerCache();
     } catch (Throwable ignored) {
     }
   }
@@ -41,6 +46,8 @@ public class ComboTeams {
   /** 设置界面用：组合总开关。关掉时把已经并在一起的组合体立刻拆成"每台各一份"。 */
   public static void setEnabled(boolean value) {
     enabled = value;
+    ComboReflect.clearSoloCache();
+    clearTeamPlayerCache();
     if (!value)
       detachEverything("组合总开关关闭");
     else
@@ -114,6 +121,8 @@ public class ComboTeams {
 
   public static void set(boolean value) {
     playersOnly = value;
+    ComboReflect.clearSoloCache();
+    clearTeamPlayerCache();
     // 【性能】"组合相关建筑"登记表是按这个开关过滤过后存的，开关一变就得重扫
     //（否则打开"只和玩家队友组合"之后，名单里还留着敌人的建筑）。
     try {
@@ -152,26 +161,56 @@ public class ComboTeams {
 
   /** 只看"队伍里有没有玩家"，不看自动组合开关。 */
   public static boolean playerTeamRaw(Team team) {
-    if (!playersOnly)
-      return true;
     if (team == null)
       return false;
+    boolean attackMode = false;
     try {
-      if (Vars.player != null && Vars.player.team() == team)
-        return true;
-      for (Player p : Groups.player)
-        if (p != null && p.team() == team)
-          return true;
+      attackMode = Vars.state != null && Vars.state.rules != null && Vars.state.rules.attackMode;
     } catch (Throwable ignored) {
     }
+    // 战役进攻图上的敌方基地是成千上万台 AI 建筑。让它们自动组合既没有玩法收益，
+    // 又会在每次敌重建时触发全图网络重算（planetaryTerminal 单次 42ms）。
+    // 进攻模式默认只组合玩家队；普通生存/PvP 仍尊重原设置。
+    if (!playersOnly && !attackMode)
+      return true;
+    long tick = Vars.state == null ? Long.MIN_VALUE : Vars.state.updateId;
+    if (tick != Long.MIN_VALUE && tick != teamPlayerCacheTick) {
+      for (int i = 0; i < teamPlayerCache.length; i++) teamPlayerCache[i] = 0;
+      teamPlayerCacheTick = tick;
+    }
+    if (tick != Long.MIN_VALUE && team.id >= 0 && team.id < teamPlayerCache.length) {
+      byte cached = teamPlayerCache[team.id];
+      if (cached != 0) return cached == 1;
+    }
+    try {
+      if (Vars.player != null && Vars.player.team() == team)
+        return cacheTeamPlayer(team, true);
+      for (Player p : Groups.player)
+        if (p != null && p.team() == team)
+          return cacheTeamPlayer(team, true);
+    } catch (Throwable ignored) {
+    }
+    if (attackMode)
+      return cacheTeamPlayer(team, Vars.state.rules.defaultTeam == team);
     // 一个玩家都没有的场合（无头测试 / 服务器刚开还没人）：把"默认队伍"当玩家队伍，
     // 其余队伍（crux/malis 这类 AI）一律不算 —— 有玩家时上面的判断先命中，不受影响。
     try {
-      return Vars.headless && Vars.state != null && Vars.state.rules != null
-          && team == Vars.state.rules.defaultTeam;
+      return cacheTeamPlayer(team, Vars.headless && Vars.state != null && Vars.state.rules != null
+          && team == Vars.state.rules.defaultTeam);
     } catch (Throwable ignored) {
     }
-    return false;
+    return cacheTeamPlayer(team, false);
+  }
+
+  private static boolean cacheTeamPlayer(Team team, boolean value) {
+    if (team != null && team.id >= 0 && team.id < teamPlayerCache.length)
+      teamPlayerCache[team.id] = value ? (byte)1 : (byte)2;
+    return value;
+  }
+
+  public static void clearTeamPlayerCache() {
+    for (int i = 0; i < teamPlayerCache.length; i++) teamPlayerCache[i] = 0;
+    teamPlayerCacheTick = Long.MIN_VALUE;
   }
 
   /** 这两台建筑能不能组合成一组（总开关关着时只看同队）。 */

@@ -441,6 +441,16 @@ public class ComboNet {
     }
 
     /**
+     * 世界里有没有组合连接器/节点。
+     *
+     * 没有连接件时，墙的跨距离连线指纹每帧都是同一个值；大型原有地图通常一个连接件都没有，
+     * 没必要让每面墙每帧扫四邻。登记表还没准备好时保守返回 true。
+     */
+    public static boolean hasTrackedLinkers(){
+        return !canUseTrackedCache() || trackedLinkers > 0;
+    }
+
+    /**
      * 当前世界里所有「可能与组合逻辑有关」的建筑。
      *
      * 注意不能只看 {@code Groups.build}：组合仓库/容器、以及各种 mod 的仓库方块都是
@@ -2778,7 +2788,9 @@ public class ComboNet {
         float sum = 0f;
         for(Building m : ComboReflect.group(leader)){
             if(m == null || !m.isValid() || m instanceof ComboNode.ComboNodeBuild) continue;
-            if(m instanceof HeatBlock hb) sum += Math.max(0f, hb.heat());
+            // 必须和 linkerExternalHeat 使用同一口径：导热管/需热端也可能实现 HeatBlock，
+            // 它们的 heat() 有一部分正是从本网络读到的；直接相加会把网络热量重新当产热源。
+            sum += heatSourceOf(m);
         }
         return sum;
     }

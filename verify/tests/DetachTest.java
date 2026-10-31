@@ -31,11 +31,24 @@ public class DetachTest implements ApplicationListener{
         ClassLoader ml = Vars.mods.getMod("combine").main.getClass().getClassLoader();
         Class<?> coop = Class.forName("combine.coop.CoopCombo", true, ml);
         java.lang.reflect.Method setBlocked = coop.getMethod("setBlocked", String.class, boolean.class);
+        java.lang.reflect.Method eligible = coop.getMethod("eligibleByClass", Block.class);
         Map map = Vars.maps.all().find(m -> m.name().contains("Archipelago"));
         Vars.world.loadMap(map, map.applyRules(Gamemode.survival));
         Vars.logic.play();
         run(20);
         Block prod = findAny(new String[]{"coop-producer", "废土科技-冶炼厂", "废土科技-冷却机"});
+        if(prod == null){
+          // 不同数据集里扩展方块名不固定：退回到任意一个“有物品池的 mod 方块”。
+          for(Block b : Vars.content.blocks()){
+            if(b != null && b.hasItems && b.size <= 2
+                && !b.getClass().getName().startsWith("mindustry.")
+                && !b.getClass().getName().startsWith("combine.")
+                && (Boolean)eligible.invoke(null, b)){
+              prod = b;
+              break;
+            }
+          }
+        }
         if(prod == null){ System.out.println("[DT3] 找不到可测的扩展建筑"); System.exit(3); }
         System.out.println("[DT3] 被测建筑: " + prod.name + " cls=" + prod.getClass().getName() + " loader=" + prod.getClass().getClassLoader());
         setBlocked.invoke(null, prod.name, false);
@@ -102,8 +115,8 @@ public class DetachTest implements ApplicationListener{
 
         java.lang.reflect.Field cf = Class.forName("combine.NoCombo", true, ml).getField("classes");
         Seq<Class<?>> cls = (Seq<Class<?>>) cf.get(null);
-        if(!cls.contains(mindustry.world.blocks.production.GenericCrafter.class))
-          cls.add(mindustry.world.blocks.production.GenericCrafter.class);
+        if(!cls.contains(prod.getClass()))
+          cls.add(prod.getClass());
         coop.getMethod("clearEligibilityCache").invoke(null);
         coop.getMethod("markDirty").invoke(null);
         run(15);

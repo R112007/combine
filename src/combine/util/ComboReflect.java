@@ -52,6 +52,11 @@ public class ComboReflect {
    */
   private static final java.util.concurrent.ConcurrentHashMap<Class<?>, Boolean> isComboBuildCache =
       new java.util.concurrent.ConcurrentHashMap<>();
+  /**
+   * 已确认处于单台状态的建筑。大型进攻图有上万台敌方组合建筑，非玩家队伍每帧都会走
+   * markSolo；缓存后不再重复做反射字段读取。开关或换图时统一清空。
+   */
+  private static final ObjectSet<Building> knownSolo = new ObjectSet<>();
 
   public static boolean isComboBuild(Building b){
         if(b == null) return false;
@@ -363,6 +368,7 @@ public class ComboReflect {
 
     public static void setDirty(Building b, boolean value){
         if(b == null) return;
+        if(value) knownSolo.remove(b);
         setBoolean(b, "comboDirty", value);
     }
 
@@ -401,8 +407,12 @@ public class ComboReflect {
     public static void markSolo(Building b){
         if(b == null) return;
         try{
+            if(knownSolo.contains(b)) return;
             // leader 还在 / 存档里还记着"该并进谁"：这才是"还处在组合态"，需要拨回来
-            if(fieldValue(b, "comboLeader") == null && !hasPendingLeader(b)) return;
+            if(fieldValue(b, "comboLeader") == null && !hasPendingLeader(b)){
+                knownSolo.add(b);
+                return;
+            }
             setField(b, "comboLeader", null);
             setInt(b, "pendingLeaderPos", -1);
             Seq<Object> self = new Seq<>();
@@ -412,8 +422,14 @@ public class ComboReflect {
             setItemCap(b, baseItemCap(b));
             setLiquidCap(b, baseLiquidCap(b));
             setDirty(b, true);
+            knownSolo.add(b);
         }catch(Throwable ignored){
         }
+    }
+
+    /** 开关或换图后，"永远单台"的旧结论失效。 */
+    public static void clearSoloCache(){
+        knownSolo.clear();
     }
 
     /** 把任意字段设成 value（类型不符/字段不存在就静默跳过）。 */

@@ -89,6 +89,15 @@ public class HeatProducerTest implements ApplicationListener{
             }
         }catch(Throwable ignored){}
         return null; }
+    static Block originalOf(Block combo){
+        try{
+            Class<?> cloner = combo.getClass().getClassLoader().loadClass("combine.BlockCloner");
+            Object map = cloner.getField("comboToOriginal").get(null);
+            Object value = map.getClass().getMethod("get", Object.class).invoke(map, combo);
+            return value instanceof Block b ? b : null;
+        }catch(Throwable ignored){}
+        return null;
+    }
 
     @Override public void init(){
       try{
@@ -112,7 +121,14 @@ public class HeatProducerTest implements ApplicationListener{
         if(heater == null){ System.out.println("[HP] 没找到 slag-heater"); System.exit(3); }
         System.out.println("[HP] 制热机=" + heater.name + "/" + heater.getClass().getName()
             + " size=" + heater.size + " heatOutput=" + fieldF(heater, "heatOutput")
+            + " warmupRate=" + fieldF(heater, "warmupRate")
             + " | 导热=" + (router==null?null:router.name + "/" + router.getClass().getName()));
+        Block originalHeater = originalOf(heater);
+        float originalWarmupRate = originalHeater == null ? -1f : fieldF(originalHeater, "warmupRate");
+        float comboWarmupRate = fieldF(heater, "warmupRate");
+        System.out.println("[HP] 升温率: 原版=" + originalWarmupRate + " 组合=" + comboWarmupRate);
+        check("组合产热机保留原版 warmupRate（" + comboWarmupRate + "）",
+            originalWarmupRate > 0f && Math.abs(comboWarmupRate - originalWarmupRate) < 0.0001f);
 
         int sz = Math.max(heater.size, 1);
         Building[] all = new Building[10];
@@ -140,6 +156,9 @@ public class HeatProducerTest implements ApplicationListener{
         System.out.println("[HP] 自身之和=" + ownSum + " 对外 heat() 之和=" + heatSum);
         float per = ownSum / all.length;
         check("十台都在产热（每台 " + per + " > 0）", per > 0.1f && sameOwn);
+        float ratedHeat = fieldF(heater, "heatOutput");
+        check("120 tick 后达到额定热量（每台 " + per + " / " + ratedHeat + "）",
+            per >= ratedHeat * 0.9f && per <= ratedHeat * 1.1f);
         check("每台对外报的就是自己那一份（heat() == 自身）", Math.abs(heatSum - ownSum) < 1f);
         float threeSide = 0f;
         for(int i = 0; i < 3; i++) threeSide += heatOf(all[i]);

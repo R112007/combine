@@ -32,6 +32,7 @@ import mindustry.world.blocks.production.Pump;
 import mindustry.world.blocks.production.SolidPump;
 import mindustry.world.blocks.heat.HeatConductor;
 import mindustry.world.blocks.heat.HeatProducer;
+import mindustry.world.blocks.power.PowerGenerator;
 import mindustry.world.blocks.production.WallCrafter;
 import mindustry.world.blocks.storage.CoreBlock;
 import mindustry.world.blocks.storage.StorageBlock;
@@ -397,12 +398,16 @@ public class CoopCombo {
     // 界面上列清单（ignoreManualBlacklist=true）时只看类名单，手动屏蔽的也要能列出来再勾回去
     if (ignoreManualBlacklist ? NoCombo.blockedByClass(b) : NoCombo.blocked(b)) return false;
     if (b.getClass().getName().startsWith("combine.")) return false;
-    // 原版方块一律不碰：combine 该替换的已经替换掉了，剩下没被替换的原版方块
-    // （例如 oil-extractor/Fracker 这类"子类但不是匿名类"的）保持原样，别顺手把它们也连起来。
-    if (b.getClass().getName().startsWith("mindustry.")) return false;
+    // 原版方块原则上不碰：combine 能安全替换的已经替换掉了，剩下的保持原样。
+    // 唯独纯电力发电机和纯热量导热方块没有可供 CombinedXxx 深拷贝的稳定同名结构，
+    // 却正是协作组合能安全覆盖的类型（只共享电力/热量，不改方块类与运行逻辑）。
+    if (b.getClass().getName().startsWith("mindustry.")
+        && !(b instanceof PowerGenerator || b instanceof HeatConductor)) return false;
     if (!ignoreManualBlacklist && blacklist.contains(b.name)) return false;
     if (b instanceof CoreBlock) return false;
-    if (!b.hasItems && !b.hasLiquids) return false;
+    if (!b.hasItems && !b.hasLiquids && !b.hasPower
+        && !(b instanceof HeatProducer || b instanceof HeatCrafter || b instanceof HeatConductor))
+      return false;
     return familyOk(b);
   }
 

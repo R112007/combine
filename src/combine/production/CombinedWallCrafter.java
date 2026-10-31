@@ -512,6 +512,13 @@ public class CombinedWallCrafter extends WallCrafter {
         }
 
         @Override
+        public boolean canDump(Building to, Item item) {
+            // 同池目标（组合节点/连接器接过来的核心、仓库）不能当成出货口：
+            // dump() 会加 1 再减 1、读数不变却返回成功，真正的传送带就永远轮不到。
+            return to != null && items != null && to.items != items && super.canDump(to, item);
+        }
+
+        @Override
         public boolean shouldAmbientSound() {
             // FIX[声音线程崩溃]: MindustryX 的环境音在独立 AudioThread（20fps）上调用
             // shouldAmbientSound()，原版默认实现转调 shouldConsume()；

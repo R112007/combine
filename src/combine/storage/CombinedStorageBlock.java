@@ -728,6 +728,16 @@ public class CombinedStorageBlock extends StorageBlock {
     }
 
     @Override
+    public boolean acceptItem(Building source, Item item) {
+      // 同池建筑（组合节点/连接器并进来的工厂或别的仓库）把物品"搬"进本仓库时，
+      // 两边其实是同一个 ItemModule：加 1 再被对方减 1，等于没搬，却会让对方的
+      // dump() 以为已经成功。返回 false，对方才会继续找真正的传送带/管道出口。
+      if (source != null && source.items == items)
+        return false;
+      return super.acceptItem(source, item);
+    }
+
+    @Override
     public double sense(mindustry.logic.LAccess sensor) {
       if (sensor == mindustry.logic.LAccess.itemCapacity && linkedCore == null && comboStorageCap > 0) {
         return comboStorageCap;

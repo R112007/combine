@@ -23,6 +23,14 @@ public class ComboUi {
   /** 设置键：点击组合体时要不要弹"组合体共享面板"（ComboSharePanel：勾选物品/液体/电力/热量）。 */
   public static final String SHARE_KEY = "combine-show-share-panel";
 
+  /**
+   * 【用户 2026-10-11】提示文字按平台分：手机端只写"手指怎么点"、桌面端只写"鼠标/键盘怎么按"，
+   * 别把两套操作混进同一句话（手机上看到"拖动左键 / 右键取消"没人看得懂）。
+   */
+  public static String hint(String desktop, String mobile) {
+    return mindustry.Vars.mobile ? mobile : desktop;
+  }
+
   /** 点击**自己队伍**的组合体时要不要弹"组合体共享"面板（设置里可关；默认开）。 */
   public static boolean sharePanel() {
     try {

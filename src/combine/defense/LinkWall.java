@@ -16,6 +16,7 @@ import arc.struct.Queue;
 import arc.struct.Seq;
 import mindustry.Vars;
 import mindustry.entities.Units;
+import mindustry.entities.Lightning;
 import mindustry.gen.Bullet;
 import mindustry.game.Team;
 import mindustry.gen.Building;
@@ -429,11 +430,13 @@ public class LinkWall extends Wall {
     public void updateTile() {
       // 关掉相邻自动组合（总开关 / 只保留超级组合）/ 不是玩家队伍：照常跑自己的逻辑 ——
       // 分组被 ComboTeams.playerTeam 挡成"只有自己"时 = 原版单机行为（见 ComboReflect.markSolo）。
-      if (!combine.util.ComboTeams.playerTeam(team)) combine.util.ComboReflect.markSolo(this);
+      boolean teamCombines = combine.util.ComboTeams.playerTeam(team);
+      if (!teamCombines) combine.util.ComboReflect.markSolo(this);
       super.updateTile();
       // 连着的节点改了 links（连上/断开别的组合体）时，本墙要重算分组 ——
       // 节点的连线变化不会触发这面墙的 onProximityUpdate。
-      if (!dead() && !linksDirty) {
+      // 非玩家队伍在"只玩家组合"模式下永远不会连节点，别为每面敌方墙每帧扫四邻。
+      if (teamCombines && !dead() && !linksDirty && combine.net.ComboNet.hasTrackedLinkers()) {
         int h = linkerHash();
         if (h != lastLinkerHash) {
           lastLinkerHash = h;
@@ -560,13 +563,49 @@ public class LinkWall extends Wall {
     public boolean collision(Bullet bullet) {
       if (isOpenable() && open)
         return false;
-      return super.collision(bullet);
+      // LinkWallBuild 直接继承 Building（不是 Wall.WallBuild），所以不能靠 super 拿到
+      // 原版墙的受击逻辑。放电墙（surge wall）的闪电、反弹和受击闪白都在
+      // WallBuild.collision 里，这里按原版逐行补回来；字段由 BlockCloner.copyFields
+      // 从原版墙拷到 LinkWall（lightningChance/lightningDamage/...）。
+      super.collision(bullet);
+      LinkWall wall = (LinkWall) block;
+      hit = 1f;
+
+      if (wall.lightningChance > 0f && Mathf.chance(wall.lightningChance)) {
+        Lightning.create(team, wall.lightningColor, wall.lightningDamage,
+            x, y, bullet.rotation() + 180f, wall.lightningLength);
+        if (wall.lightningSound != null)
+          wall.lightningSound.at(tile, Mathf.random(0.9f, 1.1f));
+      }
+
+      if (wall.chanceDeflect > 0f) {
+        // 原版：慢子弹不可反弹；反弹几率按子弹伤害衰减。
+        if (bullet.vel.len() <= 0.1f || !bullet.type.reflectable)
+          return true;
+        if (!Mathf.chance(wall.chanceDeflect / bullet.damage()))
+          return true;
+        if (wall.deflectSound != null)
+          wall.deflectSound.at(tile, Mathf.random(0.9f, 1.1f));
+
+        bullet.trns(-bullet.vel.x, -bullet.vel.y);
+        float penX = Math.abs(x - bullet.x), penY = Math.abs(y - bullet.y);
+        if (penX > penY)
+          bullet.vel.x *= -1;
+        else
+          bullet.vel.y *= -1;
+        bullet.owner = this;
+        bullet.team = team;
+        bullet.time += 1f;
+        return false;
+      }
+      return true;
     }
 
     @Override
     public void draw() {
       if (!isOpenable()) {
         super.draw();
+        drawFlashFx();
         drawShieldFx();
         return;
       }
@@ -579,6 +618,21 @@ public class LinkWall extends Wall {
       } else {
         Draw.rect(region, x, y);
       }
+    }
+
+    /** 原版 WallBuild.draw 的受击闪白（组合墙直接继承 Building，需要自己补）。 */
+    public void drawFlashFx() {
+      LinkWall w = (LinkWall) block;
+      if (!w.flashHit || hit < 0.001f)
+        return;
+      Draw.color(w.flashColor);
+      Draw.alpha(hit * 0.5f);
+      Draw.blend(arc.graphics.Blending.additive);
+      Fill.rect(x, y, Vars.tilesize * block.size, Vars.tilesize * block.size);
+      Draw.blend();
+      Draw.reset();
+      if (!Vars.state.isPaused())
+        hit = Mathf.clamp(hit - Time.delta / 10f);
     }
 
     /** FIX[shield]: 相位盾覆盖层（原版 ShieldWallBuild.draw 移植） */

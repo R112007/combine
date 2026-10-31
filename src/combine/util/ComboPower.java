@@ -9,7 +9,6 @@ import mindustry.game.EventType;
 import mindustry.gen.Building;
 import mindustry.gen.Groups;
 import mindustry.gen.PowerGraphUpdater;
-import mindustry.world.Tile;
 import mindustry.world.blocks.power.PowerGraph;
 
 import static mindustry.Vars.world;
@@ -45,7 +44,11 @@ public class ComboPower {
   private static boolean fullPass = false;
   /** 兜底巡检：每 N 帧把世界里的建筑过一遍，捡漏（原版某些拆除路径不会给我们任何钩子）。 */
   private static int sweepCounter = 0;
-  public static int sweepInterval = 5;
+  /**
+   * 正常增删/拆组都有事件精确登记；兜底巡检只是防漏，不需要 5 帧一次。
+   * 30 帧（0.5 秒）在 3 万建筑的进攻图上能把常驻开销降低约 6 倍。
+   */
+  public static int sweepInterval = 30;
 
   /** 这台组合建筑的电力模块可能掉队了：下一帧对账一次。 */
   public static void mark(Building b) {
@@ -106,23 +109,18 @@ public class ComboPower {
       // "只玩家组合"打开时，AI 敌人的建筑不参与组合、也不需要模组替它们对账电网 ——
       // 大型进攻图上有几万台敌方建筑，全收进来就是一次几十毫秒的卡顿（用户报"进去非常卡"）。
       boolean playersOnly = ComboTeams.playersOnly;
-      if (fullPass) {
+      if (fullPass || sweep) {
+        boolean full = fullPass;
         fullPass = false;
-        if (world != null && world.tiles != null) {
-          for (Tile t : world.tiles) {
-            Building b = t == null ? null : t.build;
-            if (b != null && b.isValid() && b.power != null
-                && (!playersOnly || ComboTeams.playerTeam(b.team)))
-              targets.add(b);
-          }
-        }
-      } else if (sweep && world != null) {
-        // 兜底：只扫"每帧都在更新"的建筑（组合建筑都在里面），不动原版那些 update=false 的
+        // 电网只存在于会更新的建筑上；不用扫 262k 个 Tile。
+        // 兜底与整图对账共用这份名单，避免大图首帧/每 0.5 秒多走一遍全地表格。
         for (Building b : Groups.build) {
           if (b != null && b.isValid() && b.power != null
               && (!playersOnly || ComboTeams.playerTeam(b.team)))
             targets.add(b);
         }
+        if (!full && targets.isEmpty())
+          return;
       }
       for (Building b : pending) {
         if (b != null && b.power != null && ComboReflect.inWorld(b) && !targets.contains(b, true))
